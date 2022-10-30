@@ -52,15 +52,16 @@ def build_constraint_table(constraints, agent):
     #               the given agent for each time step. The table can be used
     #               for a more efficient constraint violation check in the 
     #               is_constrained function.
+
     constraints_table = dict()
-    for constraint in constraints_table:
+    for constraint in constraints:
         # we need to consider only the constraints for the given agent
         # 4.1 Supporting positive constraints
         if (not 'positive' in constraint.keys()):
             constraint['positive'] = False
         if constraint['agent'] == agent:
             timestep = constraint['timestep']
-            if timestep not in c_table:
+            if timestep not in constraints_table:
                 constraints_table[timestep] = [constraint]
             else:
                 constraints_table[timestep].append(constraint)
@@ -153,7 +154,7 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
     closed_list = dict()
     earliest_goal_timestep = 0
     h_value = h_values[start_loc]
-    c_table = build_constraint_table(constraints, agent)
+    constraints_table = build_constraint_table(constraints, agent)
     root = {'loc': start_loc, 'g_val': 0, 'h_val': h_value, 'parent': None, 'time': earliest_goal_timestep}
     push_node(open_list, root)
     closed_list[(start_loc, 0)] = root
@@ -163,7 +164,7 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
         curr = pop_node(open_list)
         #############################
         # Task 1.4: Adjust the goal test condition to handle goal constraints
-        if curr['loc'] == goal_loc and not is_future_constrained(goal_loc, curr['time'], c_table):
+        if curr['loc'] == goal_loc and not is_future_constrained(goal_loc, curr['time'], constraints_table):
             return get_path(curr)
         for dir in range(5):
             # directions 0-3 means the agent make a move, direction 4 means the agent stay in the same location
@@ -185,7 +186,7 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
                          'parent': curr,
                          'time': curr['time'] + 1}
             # check if the child violates the constraints
-            if is_constrained(curr['loc'], child['loc'], child['time'], c_table):
+            if is_constrained(curr['loc'], child['loc'], child['time'], constraints_table):
                 continue
             if (child['loc'], child['time']) in closed_list:
                 existing_node = closed_list[(child['loc'], child['time'])]
