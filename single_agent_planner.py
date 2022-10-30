@@ -86,10 +86,10 @@ def get_path(goal_node):
     return path
 
 
-def flat_constraints_list(list_of_constraints_list):
+def flat_constraints_list(list_of_constraints_arr):
     constraints = []
-    for constr_list in list_of_constraints_list:
-        for constraint in constr_list:
+    for constr_arr in list_of_constraints_arr:
+        for constraint in constr_arr:
             constraints.append(constraint)
     return constraints
 
