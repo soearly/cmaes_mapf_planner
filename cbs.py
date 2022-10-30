@@ -1,24 +1,28 @@
-import random
 import time as timer
 import heapq
+import random
 from single_agent_planner import compute_heuristics, a_star, get_location, get_sum_of_cost
 
 DEBUG = False
 
 
-def normalize_paths(pathA, pathB):
-    """
-    given path1 and path2, finds the shortest path and pads it with the last location
-    """
-    path1 = pathA.copy()
-    path2 = pathB.copy()
-    shortest, pad = (path1, len(path2) - len(path1)) if len(path1) < len(path2) else (path2, len(path1) - len(path2))
-    for _ in range(pad):
-        shortest.append(shortest[-1])
+def find_shorter_paths(path_1, path_2):
+    # Between path1 and path2, find shorter path
+    path1 = path_1.copy()
+    path2 = path_2.copy()
+    if len(path1) < len(path2):
+        shorter = path1
+        path = len(path2) - len(path1)
+    else: 
+        shorter = path2
+        path = len(path1) - len(path2)
+
+    for _ in range(path):
+        shorter.append(shorter[-1])
     return path1, path2
 
 
-def detect_collision(pathA, pathB):
+def detect_collision(path_1, path_2):
     ##############################
     # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
     #           There are two types of collisions: vertex collision and edge collision.
@@ -26,22 +30,20 @@ def detect_collision(pathA, pathB):
     #           An edge collision occurs if the robots swap their location at the same timestep.
     #           You should use "get_location(path, t)" to get the location of a robot at time t.
     # this function detects if an agent collides with another even after one of the two reached the goal
-    path1, path2 = normalize_paths(pathA, pathB)
-    length = len(path1)
-    for t in range(length):
-        # check for vertex collision
-        pos1 = get_location(path1, t)
-        pos2 = get_location(path2, t)
-        if pos1 == pos2:
-            # we return the vertex and the timestep causing the collision
-            return [pos1], t, 'vertex'
-        # check for edge collision (not if we are in the last timestep)
-        if t < length - 1:
-            next_pos1 = get_location(path1, t + 1)
-            next_pos2 = get_location(path2, t + 1)
-            if pos1 == next_pos2 and pos2 == next_pos1:
-                # we return the edge and timestep causing the collision
-                return [pos1, next_pos1], t + 1, 'edge'
+    path1, path2 = find_shorter_paths(path_1, path_2)
+
+    for t in range( len(path1) ):
+        # Vertex collison check
+        position1 = get_location(path1, t)
+        position2 = get_location(path2, t)
+        if position1 == position2:
+            return [position1], t, 'vertex'
+        # Edge collison check
+        if t < len(path1) - 1:
+            next_position1 = get_location(path1, t + 1)
+            next_position2 = get_location(path2, t + 1)
+            if position1 == next_position2 and position2 == next_position1:
+                return [position1, next_position1], t + 1, 'edge'
     return None
 
 
@@ -51,19 +53,19 @@ def detect_collisions(paths):
     #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
     #           causing the collision, and the timestep at which the collision occurred.
     #           You should use your detect_collision function to find a collision between two robots.
+
     collisions = []
-    # i and j are agents
-    for i in range(len(paths)):
-        for j in range(i + 1, len(paths)):
-            coll_data = detect_collision(paths[i], paths[j])
-            # if coll_data is not None (collision detected)
-            if coll_data:
+    # a1: agent 1 and a2: agent 2
+    for a1 in range(len(paths)):
+        for a2 in range(a1 + 1, len(paths)):
+            collisions_info = detect_collision(paths[a1], paths[a2])
+            if collisions_info:
                 collisions.append({
-                    'a1': i,
-                    'a2': j,
-                    'loc': coll_data[0],  # vertex or edge
-                    'timestep': coll_data[1],  # timestep
-                    'type': coll_data[2]
+                    'a1': a1,
+                    'a2': a2,
+                    'loc': collisions_info[0],  
+                    'timestep': collisions_info[1], 
+                    'type': collisions_info[2]
                 })
     return collisions
 
