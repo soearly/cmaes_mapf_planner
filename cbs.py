@@ -206,7 +206,7 @@ class CBSSolver(object):
         self.num_of_expanded += 1
         return node
 
-    def find_solution(self, disjoint=False):
+    def find_solution(self, disjoint=True):
         """ Finds paths for all agents from their start locations to their goal locations
 
         disjoint    - use disjoint splitting or not
@@ -254,51 +254,50 @@ class CBSSolver(object):
 
         while self.open_list and timer.time() - self.start_time < self.time_max:
             # 1. Get next node
-            p = self.pop_node()
+            next_node = self.pop_node()
             # 2. If this node has no collision, return solution
-            if not p['collisions']:
-                self.print_results(p)
-                return p['paths']
+            if not next_node['collisions']:
+                self.print_results(next_node)
+                return next_node['paths']
             # 3. Otherwise, choose the first collision
-            # collision = random.choice(p['collisions'])
-            collision = p['collisions'][0]
+            # collision = random.choice(next_node['collisions'])
+            collision = next_node['collisions'][0]
             # 4.3 Adjusting the High-Level Search
-            # constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
-            constraints = standard_splitting(collision)
-            # HERE
+            constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
+            # constraints = standard_splitting(collision)
             for c in constraints:
                 skip_node = False
-                q = {'cost': 0,
-                     'constraints': [*p['constraints'], c],  # all constraints in p plus c
-                     'paths': p['paths'].copy(),
+                nodes_constraint = {'cost': 0,
+                     'constraints': [*next_node['constraints'], c],  # all constraints for next_node
+                     'paths': next_node['paths'].copy(),
                      'collisions': []
                      }
                 agent = c['agent']
                 path = a_star(self.my_map, self.starts[agent], self.goals[agent], self.heuristics[agent],
-                              agent, q['constraints'])
+                              agent, nodes_constraint['constraints'])
                 if path:
-                    q['paths'][agent] = path
+                    nodes_constraint['paths'][agent] = path
                     if c['positive']:
-                        rebuild_agents = paths_violate_constraint(c, q['paths'])
-                        for r_agent in rebuild_agents:
-                            c_new = c.copy()
-                            c_new['agent'] = r_agent
-                            c_new['positive'] = False
-                            q['constraints'].append(c_new)
+                        renew_agents = paths_violate_constraint(c, nodes_constraint['paths'])
+                        for r_agent in renew_agents:
+                            new_c = c.copy()
+                            new_c['agent'] = r_agent
+                            new_c['positive'] = False
+                            nodes_constraint['constraints'].append(new_c)
                             r_path = a_star(self.my_map, self.starts[r_agent], self.goals[r_agent],
-                                            self.heuristics[r_agent], r_agent,q['constraints'])
+                                            self.heuristics[r_agent], r_agent,nodes_constraint['constraints'])
                             if r_path is None:
                                 skip_node = True
-                                break # at least one agents has none solution
+                                break # at least one agent no solution
                             else:
-                                q['paths'][r_agent] = r_path
+                                nodes_constraint['paths'][r_agent] = r_path
                     if(not skip_node):
-                        q['collisions'] = detect_collisions(q['paths'])
-                        q['cost'] = get_sum_of_cost(q['paths'])
-                        self.push_node(q)
+                        nodes_constraint['collisions'] = detect_collisions(nodes_constraint['paths'])
+                        nodes_constraint['cost'] = get_sum_of_cost(nodes_constraint['paths'])
+                        self.push_node(nodes_constraint)
                 else:
                     raise BaseException('No solutions')
-        raise BaseException('Time limit exceeded')
+                    
 
     def print_results(self, node):
         print("\n Found a solution! \n")
