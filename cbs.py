@@ -79,7 +79,7 @@ def standard_splitting(collision):
     #           Edge collision: the first constraint prevents the first agent to traverse the specified edge at the
     #                          specified timestep, and the second constraint prevents the second agent to traverse the
     #                          specified edge at the specified timestep
-    # in this case, we can ignore final as all the paths are normalized
+
     constraints = []
     if collision['type'] == 'vertex':
         constraints.append({
@@ -103,7 +103,6 @@ def standard_splitting(collision):
         })
         constraints.append({
             'agent': collision['a2'],
-            # revesred returns an iterator. In python list == iterator returns false, not an error: nasty bug
             'loc': list(reversed(collision['loc'])),
             'timestep': collision['timestep'],
             'final': False
@@ -121,10 +120,15 @@ def disjoint_splitting(collision):
     #                          specified timestep, and the second constraint prevents the same agent to traverse the
     #                          specified edge at the specified timestep
     #           Choose the agent randomly
-    choice = random.randint(0, 1)
+    choice = random.randint(0, 1) # choose the agent randomly
     agents = [collision['a1'], collision['a2']]
     agent = agents[choice]
-    loc = collision['loc'] if choice == 0 else list(reversed(collision['loc']))
+
+    if choice == 0:
+        loc = collision['loc']
+    else: 
+        loc = list(reversed(collision['loc']))
+        
     return [
         {
             'agent': agent,
@@ -144,38 +148,27 @@ def disjoint_splitting(collision):
 
 
 def paths_violate_constraint(constraint, paths):
-    ##############################
-    # Task 4.3: compute the list of agents that violates the positive constraints
-    # constraint:{'agent': 0, 'loc': [(2, 4)], 'timestep': 3, 'final': False, 'positive': False}
-    # paths:[[(2, 1), ... (3, 4), (3, 5)], [(1, 2), ..., (4, 4)]]
-
-    agents_violate = []
-    if len(constraint['loc']) == 1:
-        return vertex_check(constraint, paths)
-    else:
-        return edge_check(constraint, paths)
-
-def vertex_check(constraint, paths):
-    agents_violate = []
-    for agent in range(len(paths)):
-        if constraint['loc'][0] == get_location(paths[agent], constraint['timestep']):
-            agents_violate.append(agent)
-    return agents_violate
-
-def edge_check(constraint, paths):
-    agents_violate = []
-    for agent in range(len(paths)):
-        loc = [get_location(paths[agent], constraint['timestep'] - 1), get_location(paths[agent], constraint['timestep'])]
-        if loc == constraint['loc'] or constraint['loc'][0] == loc[0] or constraint['loc'][1] == loc[1]:
-            agents_violate.append(agent)
-    return agents_violate
-
+    assert constraint['positive'] is True
+    rst = []
+    for i in range(len(paths)):
+        if i == constraint['agent']:
+            continue
+        curr = get_location(paths[i], constraint['timestep'])
+        prev = get_location(paths[i], constraint['timestep'] - 1)
+        if len(constraint['loc']) == 1:  # vertex constraint
+            if constraint['loc'][0] == curr:
+                rst.append(i)
+        else:  # edge constraint
+            if constraint['loc'][0] == prev or constraint['loc'][1] == curr \
+                    or constraint['loc'] == [curr, prev]:
+                rst.append(i)
+    return rst
 
 
 class CBSSolver(object):
     """The high-level search of CBS."""
 
-    def __init__(self, my_map, starts, goals, max_time=None):
+    def __init__(self, my_map, starts, goals, time_max=None):
         """my_map   - list of lists specifying obstacle positions
         starts      - [(x1, y1), (x2, y2), ...] list of start locations
         goals       - [(x1, y1), (x2, y2), ...] list of goal locations
@@ -190,7 +183,7 @@ class CBSSolver(object):
         self.num_of_generated = 0
         self.num_of_expanded = 0
         self.CPU_time = 0
-        self.max_time =  max_time if max_time else float('inf')
+        self.time_max =  time_max if time_max else float('inf')
 
         self.open_list = []
         self.cont = 0
@@ -259,16 +252,19 @@ class CBSSolver(object):
         #                standard_splitting function). Add a new child node to your open list for each constraint
         #           Ensure to create a copy of any objects that your child nodes might inherit
 
-        while self.open_list and timer.time() - self.start_time < self.max_time:
+        while self.open_list and timer.time() - self.start_time < self.time_max:
+            # 1. Get next node
             p = self.pop_node()
-            # if there are no collisions, we found a solution
+            # 2. If this node has no collision, return solution
             if not p['collisions']:
                 self.print_results(p)
                 return p['paths']
-            # we choose a collision and turn it into constraints
-            collision = random.choice(p['collisions'])
-            # 4.2 Adjusting the High-Level Search
-            constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
+            # 3. Otherwise, choose the first collision
+            # collision = random.choice(p['collisions'])
+            collision = p['collisions'][0]
+            # 4.3 Adjusting the High-Level Search
+            # constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
+            constraints = standard_splitting(collision)
             # HERE
             for c in constraints:
                 skip_node = False
