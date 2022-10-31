@@ -162,6 +162,8 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
 
     while len(open_list) > 0:
         curr = pop_node(open_list)
+        # Task 1.1 -> 1.3: Default goal
+        # if curr['loc'] == goal_loc:
         #############################
         # Task 1.4: Adjust the goal test condition to handle goal constraints
         if curr['loc'] == goal_loc and not is_future_constrained(goal_loc, curr['time'], constraints_table):
