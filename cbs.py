@@ -81,6 +81,22 @@ def standard_splitting(collision):
     #                          specified edge at the specified timestep
 
     constraints = []
+
+    # # Task 3.2 Testing
+    # constraints.append({
+    #    'agent': 0,
+    #    'loc': [(1, 4)],
+    #    'timestep': 3,
+    #    'final' : False,
+    # })
+    # constraints.append({
+    #     'agent': 1,
+    #     'loc': [(1, 4)],
+    #     'timestep': 3,
+    #     'final' : False,
+    # })
+
+
     if collision['type'] == 'vertex':
         constraints.append({
             'agent': collision['a1'],
@@ -263,8 +279,8 @@ class CBSSolver(object):
             # collision = random.choice(next_node['collisions'])
             collision = next_node['collisions'][0]
             # 4.3 Adjusting the High-Level Search
-            constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
-            # constraints = standard_splitting(collision)
+            # constraints = disjoint_splitting(collision) if disjoint else standard_splitting(collision)
+            constraints = standard_splitting(collision)
             for c in constraints:
                 skip_node = False
                 nodes_constraint = {'cost': 0,
