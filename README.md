@@ -38,7 +38,7 @@ The Independent MAPF solver finds paths for each agents at the same time, howeve
 #### Execution
 
 ```
-python run_experiments.py --instance instances/test_50.txt --solver Independent
+python run_experiments.py --instance instances/exp2_1.txt --solver Independent
 ```
 
 #### Results sample
@@ -52,7 +52,7 @@ The prioritized MAPF solver finds paths for all agents, one after the other, tha
 #### Execution
 
 ```
-python run_experiments.py --instance instances/test_50.txt --solver Prioritized
+python run_experiments.py --instance instances/exp2_1.txt --solver Prioritized
 ```
 
 #### Results sample
