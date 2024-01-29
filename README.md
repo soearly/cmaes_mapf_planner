@@ -73,7 +73,7 @@ The batch command generates a results file named results.csv, to compare it with
 
 #### Result sample
 
-<img src="./visualization/CBSd.gif" width="450" alt="CBS">
+<img src="./visualization/CBS.gif" width="450" alt="CBS">
 
 ## Conflict Based Search with Disjoint Splitting
 
