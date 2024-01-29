@@ -43,6 +43,8 @@ python run_experiments.py --instance instances/test_50.txt --solver Independent
 
 #### Results sample
 
+<img src="./visualization/independent.gif" width="300" alt="Independent">
+
 ## Prioritized Planning
 
 The prioritized MAPF solver finds paths for all agents, one after the other, that do not collide with the environment or the already planned paths of the other agents. However, it might not complete and optimal.
