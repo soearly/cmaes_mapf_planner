@@ -51,6 +51,7 @@ class Animation:
 
         # create agents:
         self.T = 0
+        
         # draw goals first
         for i, goal in enumerate(self.goals):
             self.patches.append(Rectangle((goal[0] - 0.25, goal[1] - 0.25), 0.5, 0.5, facecolor=Colors[i % len(Colors)],
