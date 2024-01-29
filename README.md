@@ -1,5 +1,17 @@
 # Multi-Agent Path Finding in Python
 
+The Multi-Agent Pathfinding (MAPF) problem involves determining collision-free paths for a group of agents that need to navigate through a shared environment to reach their respective goal locations. The objective is to find a set of paths for all agents such that they avoid collisions with each other while reaching their individual destinations.
+
+Key characteristics of the Multi-Agent Pathfinding problem include:
+
+- Multiple Agents: There are two or more agents present in the environment, each with a unique starting location and a specific destination or goal.
+
+- Shared Environment: The agents navigate through a common environment where they might encounter each other. The challenge is to plan their paths to avoid collisions.
+
+- Collision Avoidance: The primary goal is to find a set of paths for the agents that prevent them from colliding with each other. Paths must be coordinated to ensure safe and efficient movement.
+
+- Optimality: In many cases, the objective is to find optimal or near-optimal paths that minimize some criteria, such as the total travel time, the total distance covered, or other relevant metrics.
+
 ## Introduction
 
 This repository consists of the implementation of some multi-agent path-planning algorithms in Python. The following algorithms are currently implemented:
