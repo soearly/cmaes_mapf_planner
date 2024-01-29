@@ -57,6 +57,8 @@ python run_experiments.py --instance instances/test_50.txt --solver Prioritized
 
 #### Results sample
 
+<img src="./visualization/prioritized.gif" width="300" alt="Prioritized">
+
 ## Conflict Based Search
 
 Conflict-Based Search (CBS) is slower than prioritized planning but complete and optimal.
@@ -70,6 +72,8 @@ python run_experiments.py --instance "instances/test_*" --solver CBS --batch
 The batch command generates a results file named results.csv, to compare it with the one available in instances/min-sum-of-cost.csv.
 
 #### Result sample
+
+<img src="./visualization/CBSd.gif" width="400" alt="CBS">
 
 ## Conflict Based Search with Disjoint Splitting
 
