@@ -15,6 +15,8 @@ import os
 
 SOLVER = "CBS"
 
+# Compute goal permutations based on a list of lambda weightings
+# This is used by the CMA-ES algorithm to suggest different agent-goal assignments
 def compute_goal_matrix_list(goals, lamda):
     goal_perm_list = []
     for i in range(len(lamda)):
@@ -22,7 +24,7 @@ def compute_goal_matrix_list(goals, lamda):
         permuted = [goals[idx] for idx in idx_sort]
         goal_perm_list.append(permuted)
     return goal_perm_list
-
+# MAPF planner using CBS over different goal permutations
 def mapf_planner(lamda, my_map, starts, goals, disjoint=False):
     goal_perm_list = compute_goal_matrix_list(goals, lamda)
     costs = []
@@ -32,7 +34,7 @@ def mapf_planner(lamda, my_map, starts, goals, disjoint=False):
         cost = get_sum_of_cost(paths)
         costs.append(cost)
     return costs
-
+# Load a MAPF instance from a file
 def import_mapf_instance(filename):
     f = Path(filename)
     if not f.is_file():

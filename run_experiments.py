@@ -1,4 +1,10 @@
 import numpy as np
+import argparse
+
+import matplotlib.pyplot as plt
+import os
+import os.path
+
 from mapf_planner import mapf_planner, import_mapf_instance
 
 class CMAES:
@@ -79,7 +85,17 @@ class CMAES:
 
 # ---------------- CMA-ES MAPF Integration ----------------
 
-map_file = 'instances/test_1.txt'  # Update this path
+#map_file = 'instances/test_1.txt'  # Update this path
+
+
+parser = argparse.ArgumentParser(description="Run CMA-ES on MAPF instance")
+parser.add_argument('--instance', type=str, required=True, help='Path to the MAPF instance file')
+parser.add_argument('--solver', type=str, default='CBS', help='Solver to use (default: CBS)')
+args = parser.parse_args()
+
+map_file = args.instance
+
+
 my_map, starts, goals = import_mapf_instance(map_file)
 
 dim = len(goals)
@@ -88,9 +104,11 @@ initial_sigma = 1.0
 cmaes = CMAES(mean=initial_mean, sigma=initial_sigma)
 
 n_generations = 100
+cost_track = []
 for generation in range(n_generations):
     lamda = cmaes.ask()
     fitness_values = mapf_planner(lamda, my_map, starts, goals, disjoint=False)
+    cost_track.append(np.min(fitness_values))
     cmaes.tell(fitness_values)
 
     if generation % 10 == 0:
@@ -99,5 +117,17 @@ for generation in range(n_generations):
         print(f"Generation {generation}: Best fitness = {best_fitness:.6e}, Sigma = {sigma:.6e}")
 
 mean, sigma = cmaes.result()
+
+goal_perm_list = []
+
+idx_sort = np.argsort(np.abs(mean))
+permuted = [goals[idx] for idx in idx_sort]
+goal_perm_list.append(permuted)
+print(goal_perm_list)
+
+
 print(f"\nFinal solution: {mean}")
 print(f"Final step size: {sigma:.6e}")
+
+plt.plot(cost_track)
+plt.show()
