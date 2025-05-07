@@ -74,12 +74,21 @@ class Animation:
                                                  interval=50,#speed
                                                  blit=True)
 
-    def save(self, file_name, speed):
+    def save(self, file_name, time_step, writer=None):
         self.animation.save(
             file_name,
-            fps=10 * speed,
-            dpi=200,
-            savefig_kwargs={"pad_inches": 0, "bbox_inches": "tight"})
+            fps=int(1.0 / time_step),
+            writer=writer,  # pass the writer if provided
+            savefig_kwargs={"bbox_inches": "tight"}
+        )
+
+
+ #   def save(self, file_name, speed):
+ #       self.animation.save(
+ #           file_name,
+ #           fps=10 * speed,
+ #           dpi=200,
+ #           savefig_kwargs={"pad_inches": 0, "bbox_inches": "tight"})
 
     @staticmethod
     def show():

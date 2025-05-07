@@ -1,118 +1,103 @@
-#!/usr/bin/python
-import argparse
-import glob
-from pathlib import Path
-from cbs import CBSSolver
-from independent import IndependentSolver
-from prioritized import PrioritizedPlanningSolver
-from visualize import Animation
-from single_agent_planner import get_sum_of_cost
+import numpy as np
+from mapf_planner import mapf_planner, import_mapf_instance
 
-SOLVER = "CBS"
+class CMAES:
+    def __init__(self, mean, sigma, population_size=None, seed=None):
+        self.rng = np.random.RandomState(seed)
+        self.n = len(mean)
+        self.mean = np.array(mean, dtype=np.float64).copy()
+        self.sigma = sigma
+        self.lambda_ = population_size if population_size else 4 + int(3 * np.log(self.n))
+        self.mu = self.lambda_ // 2
+        self.weights = np.log(self.mu + 0.5) - np.log(np.arange(1, self.mu + 1))
+        self.weights /= np.sum(self.weights)
+        self.mueff = 1 / np.sum(np.square(self.weights))
+        self.cc = 4 / (self.n + 4)
+        self.cs = (self.mueff + 2) / (self.n + self.mueff + 5)
+        self.c1 = 2 / ((self.n + 1.3) ** 2 + self.mueff)
+        self.cmu = min(1 - self.c1, 2 * (self.mueff - 2 + 1 / self.mueff) /
+                       ((self.n + 2) ** 2 + self.mueff))
+        self.damps = 1 + 2 * max(0, np.sqrt((self.mueff - 1) /
+                       (self.n + 1)) - 1) + self.cs
+        self.pc = np.zeros(self.n)
+        self.ps = np.zeros(self.n)
+        self.B = np.eye(self.n)
+        self.D = np.ones(self.n)
+        self.C = np.eye(self.n)
+        self.invsqrtC = np.eye(self.n)
+        self.solutions = []
+        self.generation_counter = 0
+        self.eigeneval = 0
 
-def print_mapf_instance(my_map, starts, goals):
-    print('Start locations')
-    print_locations(my_map, starts)
-    print('Goal locations')
-    print_locations(my_map, goals)
+    def ask(self, number=None):
+        if number is None:
+            number = self.lambda_
+        self.solutions = []
+        for _ in range(number):
+            z = self.rng.randn(self.n)
+            y = self.B @ (self.D * z)
+            x = self.mean + self.sigma * y
+            self.solutions.append((x, y, z))
+        return [s[0] for s in self.solutions]
 
+    def tell(self, function_values):
+        assert len(function_values) == len(self.solutions)
+        idx_vals = sorted(enumerate(function_values), key=lambda x: x[1])
+        idx_sorted = [idx for idx, _ in idx_vals[:self.mu]]
+        x_selected = [self.solutions[i][0] for i in idx_sorted]
+        y_selected = [self.solutions[i][1] for i in idx_sorted]
+        old_mean = self.mean.copy()
+        self.mean = np.sum([self.weights[i] * x_selected[i] for i in range(self.mu)], axis=0)
+        self.ps = (1 - self.cs) * self.ps + np.sqrt(self.cs * (2 - self.cs) * self.mueff) * (
+            self.invsqrtC @ ((self.mean - old_mean) / self.sigma)
+        )
+        hsig = int(np.linalg.norm(self.ps) /
+                   np.sqrt(1 - (1 - self.cs) ** (2 * (self.generation_counter + 1))) <
+                   (1.4 + 2 / (self.n + 1)) * np.sqrt(self.n))
+        self.pc = (1 - self.cc) * self.pc + hsig * \
+            np.sqrt(self.cc * (2 - self.cc) * self.mueff) * ((self.mean - old_mean) / self.sigma)
+        weighted_ys = np.array([self.weights[i] * y_selected[i] for i in range(self.mu)])
+        rank_one = self.c1 * np.outer(self.pc, self.pc)
+        rank_mu = self.cmu * sum(
+            self.weights[i] * np.outer(y_selected[i], y_selected[i]) for i in range(self.mu)
+        )
+        self.C = (1 - self.c1 - self.cmu) * self.C + rank_one + rank_mu
+        self.sigma *= np.exp((self.cs / self.damps) *
+                             (np.linalg.norm(self.ps) / np.sqrt(self.n) - 1))
+        self.generation_counter += 1
+        if self.generation_counter - self.eigeneval > self.lambda_ / (self.c1 + self.cmu) / self.n / 10:
+            self.eigeneval = self.generation_counter
+            self.C = np.triu(self.C) + np.triu(self.C, 1).T
+            D2, B = np.linalg.eigh(self.C)
+            idx = np.argsort(D2)[::-1]
+            self.D = np.sqrt(D2[idx])
+            self.B = B[:, idx]
+            self.invsqrtC = self.B @ np.diag(1 / self.D) @ self.B.T
 
-def print_locations(my_map, locations):
-    starts_map = [[-1 for _ in range(len(my_map[0]))] for _ in range(len(my_map))]
-    for i in range(len(locations)):
-        starts_map[locations[i][0]][locations[i][1]] = i
-    to_print = ''
-    for x in range(len(my_map)):
-        for y in range(len(my_map[0])):
-            if starts_map[x][y] >= 0:
-                to_print += str(starts_map[x][y]) + ' '
-            elif my_map[x][y]:
-                to_print += '@ '
-            else:
-                to_print += '. '
-        to_print += '\n'
-    print(to_print)
+    def result(self):
+        return self.mean, self.sigma
 
+# ---------------- CMA-ES MAPF Integration ----------------
 
-def import_mapf_instance(filename):
-    f = Path(filename)
-    if not f.is_file():
-        raise BaseException(filename + " does not exist.")
-    f = open(filename, 'r')
-    # first line: #rows #columns
-    line = f.readline()
-    rows, columns = [int(x) for x in line.split(' ')]
-    rows = int(rows)
-    columns = int(columns)
-    # #rows lines with the map
-    my_map = []
-    for r in range(rows):
-        line = f.readline()
-        my_map.append([])
-        for cell in line:
-            if cell == '@':
-                my_map[-1].append(True)
-            elif cell == '.':
-                my_map[-1].append(False)
-    # #agents
-    line = f.readline()
-    num_agents = int(line)
-    # #agents lines with the start/goal positions
-    starts = []
-    goals = []
-    for a in range(num_agents):
-        line = f.readline()
-        sx, sy, gx, gy = [int(x) for x in line.split(' ')]
-        starts.append((sx, sy))
-        goals.append((gx, gy))
-    f.close()
-    return my_map, starts, goals
+map_file = 'instances/test_1.txt'  # Update this path
+my_map, starts, goals = import_mapf_instance(map_file)
 
+dim = len(goals)
+initial_mean = np.zeros(dim)
+initial_sigma = 1.0
+cmaes = CMAES(mean=initial_mean, sigma=initial_sigma)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Runs various MAPF algorithms')
-    parser.add_argument('--instance', type=str, default=None,
-                        help='The name of the instance file(s)')
-    parser.add_argument('--batch', action='store_true', default=False,
-                        help='Use batch output instead of animation')
-    parser.add_argument('--disjoint', action='store_true', default=False,
-                        help='Use the disjoint splitting')
-    parser.add_argument('--solver', type=str, default=SOLVER,
-                        help='The solver to use (one of: {CBS,Independent,Prioritized}), defaults to ' + str(SOLVER))
+n_generations = 100
+for generation in range(n_generations):
+    lamda = cmaes.ask()
+    fitness_values = mapf_planner(lamda, my_map, starts, goals, disjoint=False)
+    cmaes.tell(fitness_values)
 
-    args = parser.parse_args()
+    if generation % 10 == 0:
+        best_fitness = min(fitness_values)
+        mean, sigma = cmaes.result()
+        print(f"Generation {generation}: Best fitness = {best_fitness:.6e}, Sigma = {sigma:.6e}")
 
-
-    result_file = open("results.csv", "w", buffering=1)
-
-    for file in sorted(glob.glob(args.instance)):
-
-        print("***Import an instance***")
-        my_map, starts, goals = import_mapf_instance(file)
-        print_mapf_instance(my_map, starts, goals)
-
-        if args.solver == "CBS":
-            print("***Run CBS***")
-            cbs = CBSSolver(my_map, starts, goals)
-            paths = cbs.find_solution(args.disjoint)
-        elif args.solver == "Independent":
-            print("***Run Independent***")
-            solver = IndependentSolver(my_map, starts, goals)
-            paths = solver.find_solution()
-        elif args.solver == "Prioritized":
-            print("***Run Prioritized***")
-            solver = PrioritizedPlanningSolver(my_map, starts, goals)
-            paths = solver.find_solution()
-        else:
-            raise RuntimeError("Unknown solver!")
-
-        cost = get_sum_of_cost(paths)
-        result_file.write("{},{}\n".format(file, cost))
-
-
-        if not args.batch:
-            print("***Test paths on a simulation***")
-            animation = Animation(my_map, starts, goals, paths)
-            # animation.save("output.mp4", 1.0)
-            animation.show()
-    result_file.close()
+mean, sigma = cmaes.result()
+print(f"\nFinal solution: {mean}")
+print(f"Final step size: {sigma:.6e}")
